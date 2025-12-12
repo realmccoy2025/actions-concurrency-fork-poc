@@ -1,0 +1,51 @@
+name: Regular PR Concurrency Test
+
+# Testing if regular pull_request (not pull_request_target)
+# from forks can also cancel base repo workflows
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Mode'
+        required: true
+        type: choice
+        options:
+          - victim-run
+
+  # Regular pull_request - runs in base repo context for fork PRs too!
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: ci-${{ github.base_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Info
+        run: |
+          echo "============================================"
+          echo "REGULAR PULL_REQUEST CONCURRENCY TEST"
+          echo "============================================"
+          echo ""
+          echo "Event: $GITHUB_EVENT_NAME"
+          echo "Concurrency group: ci-${{ github.base_ref || github.ref_name }}"
+          echo ""
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "PR from: ${{ github.event.pull_request.head.repo.full_name }}"
+            echo "PR to: ${{ github.event.pull_request.base.repo.full_name }}"
+            echo "Is fork: ${{ github.event.pull_request.head.repo.fork }}"
+          fi
+
+      - name: Long running job
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Running for 120 seconds..."
+          for i in {1..120}; do
+            echo "Working... $i/120"
+            sleep 1
+          done
+          echo "Done!"
